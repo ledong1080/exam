@@ -178,7 +178,7 @@ export const PublishExamModal = ({ exam, onClose, onConfirm, onCreateNew, onPlay
         <div className="bg-white rounded-[24px] p-8 w-full max-w-lg shadow-2xl border border-teal-100 text-center relative overflow-hidden">
            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-emerald-400"></div>
            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm"><CheckCircle className="w-10 h-10 text-green-500"/></div>
-           <h2 className="text-2xl font-black text-gray-800 mb-2">Giao bài thành công!</h2>
+           <h2 className="text-2xl font-black text-gray-800 mb-2">Xuất bản thành công!</h2>
            <p className="text-gray-500 mb-8 text-sm">Hãy sao chép và gửi link cùng mã đề dưới đây cho học sinh.</p>
            
            <div className="space-y-4 mb-8 text-left">
@@ -191,7 +191,7 @@ export const PublishExamModal = ({ exam, onClose, onConfirm, onCreateNew, onPlay
            </div>
 
            <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-bold hover:bg-gray-600 transition-colors">Đóng</button>
+              <button onClick={onClose} className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-bold hover:bg-gray-600 transition-colors">Quay về trang chủ</button>
               {onPlay && <button onClick={onPlay} className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 shadow-lg shadow-teal-200 transition-all flex items-center justify-center"><PlayCircle className="w-4 h-4 mr-2"/> Thi thử ngay</button>}
               {onCreateNew && <button onClick={onCreateNew} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Tạo đề khác</button>}
            </div>

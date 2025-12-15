@@ -1,14 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, PenTool, Share2, LogOut, FolderPlus, Trash2, Clock, List, Users, FileUp, Plus, PlayCircle, Edit, ArrowLeft, Copy, BarChart3, Search, Download, Filter, Eye, X, UserPlus, Upload, BookOpen, CheckSquare, GraduationCap, Calendar, AlertTriangle, Trophy, FileText, Bell, UserX, Check, LogIn } from 'lucide-react';
-import { ExamConfig, Question, StudentResult, Student } from '../types';
-import { copyToClipboard, MathRenderer } from '../utils/common';
+import { LayoutDashboard, PenTool, Share2, LogOut, FolderPlus, Trash2, Clock, List, Users, FileUp, Plus, PlayCircle, Edit, ArrowLeft, Copy, BarChart3, Search, Download, Filter, Eye, X, UserPlus, Upload, BookOpen, CheckSquare, GraduationCap, Calendar, AlertTriangle, Trophy, FileText, Bell, UserX, Check, LogIn, Lock, Mail, MoreHorizontal, FileInput, ChevronRight, Settings, Globe } from 'lucide-react';
+import { ExamConfig, Question, StudentResult, Student, User } from '../types';
+import { copyToClipboard, MathRenderer, loadExternalLibs } from '../utils/common';
 import { EditQuestionModal, ImportModal, PublishExamModal, StudentModal, ImportStudentModal, AssignExamModal } from './Modals';
 import { ResultScreen } from './Player';
 
-// ------------------------------------------------
-// STYLES & THEME
-// ------------------------------------------------
 const DASHBOARD_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -117,9 +113,6 @@ const DASHBOARD_STYLES = `
   }
 `;
 
-// ------------------------------------------------
-// COMPONENT: DASHBOARD OVERVIEW (STATS)
-// ------------------------------------------------
 export const DashboardOverview = ({ students, exams }: { students: Student[], exams: ExamConfig[] }) => {
   const dateStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   
@@ -187,26 +180,30 @@ export const DashboardOverview = ({ students, exams }: { students: Student[], ex
   );
 };
 
+export interface DashboardLayoutProps {
+    children?: React.ReactNode; 
+    activeTab: string; 
+    onTabChange: (tab: any) => void; 
+    onCreateClick: () => void;
+    user: User | null;
+    isGuest?: boolean;
+    onLoginClick: () => void;
+    onLogoutClick: () => void;
+}
 
-// ------------------------------------------------
-// COMPONENT: DASHBOARD LAYOUT
-// ------------------------------------------------
-export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClick }: any) => {
+export const DashboardLayout = ({ 
+    children, 
+    activeTab, 
+    onTabChange, 
+    onCreateClick,
+    user,
+    isGuest = false,
+    onLoginClick,
+    onLogoutClick
+}: DashboardLayoutProps) => {
   
   // Navigation Config
-  const sidebarGroups: {
-    title: string;
-    items: {
-      id: string;
-      label: string;
-      icon: any;
-      activeColor: string;
-      bgColor: string;
-      hoverColor: string;
-      hoverBg: string;
-      action?: () => void;
-    }[];
-  }[] = [
+  const sidebarGroups = [
     {
       title: "",
       items: [
@@ -226,7 +223,7 @@ export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClic
       <style>{DASHBOARD_STYLES}</style>
       
       {/* SIDEBAR */}
-      <div className="w-64 bg-gradient-to-b from-[#0D9488] to-[#0D9488] border-2 border-gray-100 flex flex-col z-20 shadow-xl m-4 rounded-[20px] text-white shrink-0">
+      <div className={`w-64 bg-gradient-to-b from-[#0D9488] to-[#0D9488] border-2 border-gray-100 flex flex-col z-20 shadow-xl m-4 rounded-[20px] text-white shrink-0 ${isGuest ? 'opacity-90' : ''}`}>
          <div className="p-6 border-b border-white/20">
              <div className="flex items-center gap-2">
                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg border border-white/30">
@@ -239,29 +236,40 @@ export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClic
              </div>
          </div>
          
-         <div className="flex-1 py-6 px-4 overflow-y-auto custom-scrollbar-light">
+         <div className="flex-1 py-6 px-4 overflow-y-auto custom-scrollbar-light relative">
+            {isGuest && (
+                 <div className="absolute inset-0 z-10 bg-teal-900/10 backdrop-blur-[1px] cursor-not-allowed flex items-center justify-center">
+                 </div>
+            )}
             <nav className="space-y-3">
                {sidebarGroups.map((group, gIdx) => (
                   <div key={gIdx}>
                      {group.title && <p className="px-4 text-[10px] font-black text-teal-200 uppercase mb-3 tracking-wider">{group.title}</p>}
                      <div className="space-y-1">
                         {group.items.map((item) => {
+                           // Logic ẩn/hiện dựa trên Role
+                           if (user?.role === 'student') {
+                               // Học sinh chỉ được thấy 'overview' và 'publish'
+                               if (item.id !== 'overview' && item.id !== 'publish') return null;
+                           }
+
                            const isActive = activeTab === item.id;
                            return (
                               <button 
                                  key={item.id}
-                                 onClick={item.action ? item.action : () => onTabChange(item.id)} 
+                                 onClick={() => !isGuest && onTabChange(item.id)}
+                                 disabled={isGuest}
                                  className={`sidebar-btn group transition-all duration-300 ease-in-out border
-                                    ${isActive 
+                                    ${isActive && !isGuest
                                         ? `bg-white text-[#0D9488] font-bold shadow-lg border-white translate-x-2` 
                                         : `text-teal-50 hover:bg-white/10 hover:text-white border-transparent hover:shadow-sm hover:translate-x-1`
-                                    }`}
+                                    } ${isGuest ? 'opacity-50' : ''}`}
                               >
-                                 <div className={`mr-3 transition-colors ${isActive ? 'text-[#0D9488]' : 'text-teal-200 group-hover:text-white'}`}>
-                                    <item.icon className="w-5 h-5" />
+                                 <div className={`mr-3 transition-colors ${isActive && !isGuest ? 'text-[#0D9488]' : 'text-teal-200 group-hover:text-white'}`}>
+                                    {isGuest && item.id !== 'overview' ? <Lock className="w-4 h-4" /> : <item.icon className="w-5 h-5" />}
                                  </div>
                                  <span className="flex-1 text-left">{item.label}</span>
-                                 {isActive && <div className="w-1.5 h-1.5 rounded-full bg-[#0D9488] ml-2"></div>}
+                                 {isActive && !isGuest && <div className="w-1.5 h-1.5 rounded-full bg-[#0D9488] ml-2"></div>}
                               </button>
                            );
                         })}
@@ -272,15 +280,21 @@ export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClic
          </div>
          
          <div className="p-4 border-t border-white/20">
-             <button className="w-full flex items-center justify-center gap-2 text-white/90 font-bold text-sm p-3 hover:bg-white/10 rounded-xl transition-colors border border-transparent hover:border-white/20 shadow-sm">
-                 <LogOut className="w-4 h-4" /> Đăng xuất
-             </button>
+             {isGuest ? (
+                 <button onClick={onLoginClick} className="w-full flex items-center justify-center gap-2 bg-white text-teal-700 font-bold text-sm p-3 rounded-xl transition-all shadow-lg hover:bg-gray-100">
+                     <LogIn className="w-4 h-4" /> Đăng nhập
+                 </button>
+             ) : (
+                 <button onClick={onLogoutClick} className="w-full flex items-center justify-center gap-2 text-white/90 font-bold text-sm p-3 hover:bg-white/10 rounded-xl transition-colors border border-transparent hover:border-white/20 shadow-sm">
+                     <LogOut className="w-4 h-4" /> Đăng xuất ({user?.name || 'Admin'})
+                 </button>
+             )}
          </div>
       </div>
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col overflow-hidden h-screen relative">
-         {/* TOP HEADER - REPLACED WITH NEW DESIGN */}
+         {/* TOP HEADER */}
          <header className="bg-gradient-to-r from-[#0D9488] to-[#0D9488] text-white shadow-xl m-4 rounded-[20px] border-2 border-gray-100 relative z-30 shrink-0">
              <div className="container mx-auto px-6 py-4 md:py-6">
                 <div className="flex flex-col items-center justify-center gap-4">
@@ -290,15 +304,27 @@ export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClic
                             HỆ THỐNG THI TRẮC NGHIỆM ONLINE
                         </h1>
                         <h3 className="text-base md:text-xl mt-2 opacity-90 font-light [text-shadow:1px_1px_3px_rgba(0,0,0,0.8)] font-poppins">
-                            Thầy Lê Văn Đông - Chuyên Lê Thánh Tông
+                            {user?.school || "Thầy Lê Văn Đông - Chuyên Lê Thánh Tông"}
                         </h3>
                     </div>
                 </div>
              </div>
              <div className="absolute right-6 top-1/2 -translate-y-1/2 hidden lg:block">
-                 <button className="bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-white/30 flex items-center gap-2 transition-all">
-                    <LogIn className="w-4 h-4"/> Đăng nhập
-                 </button>
+                 {isGuest ? (
+                    <button onClick={onLoginClick} className="bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-white/30 flex items-center gap-2 transition-all">
+                        <LogIn className="w-4 h-4"/> Đăng nhập
+                    </button>
+                 ) : (
+                    <div className="flex items-center gap-3">
+                        <div className="text-right">
+                             <p className="text-xs text-teal-200 font-bold uppercase">{user?.role === 'teacher' ? 'Giáo viên' : 'Học sinh'}</p>
+                             <p className="text-sm font-bold text-white">{user?.name}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
+                             <UserPlus className="w-5 h-5"/>
+                        </div>
+                    </div>
+                 )}
              </div>
          </header>
 
@@ -311,469 +337,442 @@ export const DashboardLayout = ({ children, activeTab, onTabChange, onCreateClic
   );
 };
 
-
-// ------------------------------------------------
-// EXISTING COMPONENTS (Minor Style Tweaks)
-// ------------------------------------------------
-
-export const StudentManager = ({ students, exams, onAddStudent, onEditStudent, onDeleteStudent, onDeleteStudents, onImportStudents }: any) => {
-   const [filterClass, setFilterClass] = useState('all');
-   const [searchName, setSearchName] = useState('');
-   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-   const [showAdd, setShowAdd] = useState(false);
-   const [showImport, setShowImport] = useState(false);
-   
-   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-   const classes = Array.from(new Set(students.map((s: Student) => s.className))).sort() as string[];
-
-   const filteredStudents = students.filter((s: Student) => {
-      const matchClass = filterClass === 'all' || s.className === filterClass;
-      const matchName = s.name.toLowerCase().includes(searchName.toLowerCase());
-      return matchClass && matchName;
-   });
-
-   const isAllSelected = filteredStudents.length > 0 && selectedStudents.length === filteredStudents.length;
-   
-   const handleSelectAll = () => {
-       if (isAllSelected) setSelectedStudents([]);
-       else setSelectedStudents(filteredStudents.map((s: Student) => s.id));
-   };
-
-   const handleSelectStudent = (id: string) => {
-       if (selectedStudents.includes(id)) setSelectedStudents(selectedStudents.filter(sid => sid !== id));
-       else setSelectedStudents([...selectedStudents, id]);
-   };
-
-   const handleDeleteSelected = () => {
-       if (selectedStudents.length === 0) return;
-       if (confirm(`Bạn có chắc muốn xóa ${selectedStudents.length} học sinh đã chọn?`)) {
-           if (onDeleteStudents) {
-               onDeleteStudents(selectedStudents);
-           } else {
-               selectedStudents.forEach(id => onDeleteStudent(id));
-           }
-           setSelectedStudents([]);
-       }
-   };
-
-   const getExamCount = (student: Student) => {
-      if (!exams) return 0;
-      let count = 0;
-      exams.forEach((exam: ExamConfig) => {
-         if (exam.results) {
-            const matches = exam.results.filter(r => 
-               r.name.trim().toLowerCase() === student.name.trim().toLowerCase() && 
-               r.className.trim().toLowerCase() === student.className.trim().toLowerCase()
-            );
-            count += matches.length;
-         }
-      });
-      return count;
-   };
-
-   return (
-      <div className="animate-fade-in font-poppins">
-         {showAdd && <StudentModal onClose={() => setShowAdd(false)} onSave={(s: Student) => { onAddStudent(s); setShowAdd(false); }} />}
-         {editingStudent && <StudentModal student={editingStudent} onClose={() => setEditingStudent(null)} onSave={(s: Student) => { onEditStudent(s); setEditingStudent(null); }} />}
-         {showImport && <ImportStudentModal onClose={() => setShowImport(false)} onImport={onImportStudents} />}
-
-         <div className="mb-8 flex justify-between items-end">
-            <div>
-               <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Quản Lý Học Sinh</h2>
-               <p className="text-gray-500">Quản lý danh sách, lớp học và thông tin học sinh.</p>
-            </div>
-            <div className="flex gap-2">
-               {selectedStudents.length > 0 && (
-                   <button onClick={handleDeleteSelected} className="flex items-center px-5 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 border border-red-200 transition-all">
-                      <Trash2 className="w-5 h-5 mr-2"/> Xóa ({selectedStudents.length})
-                   </button>
-               )}
-               <button onClick={() => setShowImport(true)} className="flex items-center px-5 py-2.5 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 border border-indigo-200 shadow-sm transition-all">
-                  <Upload className="w-5 h-5 mr-2"/> Import Excel
-               </button>
-               <button onClick={() => setShowAdd(true)} className="flex items-center px-5 py-2.5 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 shadow-lg shadow-teal-200 transition-all">
-                  <UserPlus className="w-5 h-5 mr-2"/> Thêm Học Sinh
-               </button>
-            </div>
-         </div>
-
-         <div className="bg-[#DDDDDD] p-6 rounded-3xl shadow-sm border border-[#0D9488] mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-               <label className="block text-xs font-bold text-[#0D9488] uppercase mb-2">Lọc theo Lớp</label>
-               <div className="relative">
-                  <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="w-full p-3 pl-10 border border-gray-200 rounded-xl appearance-none outline-none bg-gray-50 font-bold text-gray-700 focus:border-teal-500 transition-colors">
-                     <option value="all">Tất cả các lớp</option>
-                     {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <Filter className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"/>
-               </div>
-            </div>
-            <div>
-               <label className="block text-xs font-bold text-[#0D9488] uppercase mb-2">Tìm kiếm Học sinh</label>
-               <div className="relative">
-                  <input type="text" value={searchName} onChange={e => setSearchName(e.target.value)} placeholder="Nhập tên học sinh..." className="w-full p-3 pl-10 border border-gray-200 rounded-xl outline-none bg-gray-50 font-medium focus:border-teal-500 transition-colors" />
-                  <Search className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"/>
-               </div>
-            </div>
-         </div>
-
-         <div className="bg-[#DDDDDD] rounded-3xl shadow-sm border border-[#0D9488] overflow-hidden">
-            <table className="w-full text-left">
-               <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                     <th className="p-5 w-10 text-center">
-                        <button onClick={handleSelectAll} className="flex items-center justify-center text-teal-600 hover:text-teal-800">
-                            {isAllSelected ? <CheckSquare className="w-5 h-5"/> : <div className="w-5 h-5 border-2 border-gray-300 rounded mx-auto"></div>}
-                        </button>
-                     </th>
-                    <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider w-16">STT</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider">Họ Tên</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider">Lớp</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider">Email</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-center">Số lần thi</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-right">Hành động</th>
-                  </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-50">
-                  {filteredStudents.length > 0 ? filteredStudents.map((s: Student, i: number) => {
-                     const examCount = getExamCount(s);
-                     return (
-                        <tr key={s.id} className={`hover:bg-gray-50 transition-colors ${selectedStudents.includes(s.id) ? 'bg-blue-50/30' : ''}`}>
-                           <td className="p-5 text-center">
-                              <input 
-                                 type="checkbox" 
-                                 className="w-4 h-4 accent-teal-600 cursor-pointer"
-                                 checked={selectedStudents.includes(s.id)}
-                                 onChange={() => handleSelectStudent(s.id)}
-                              />
-                           </td>
-                           <td className="p-5 font-bold text-gray-400">{i + 1}</td>
-                           <td className="p-5 font-bold text-gray-800">{s.name}</td>
-                           <td className="p-5 font-medium text-gray-600">{s.className}</td>
-                           <td className="p-5 text-gray-500">{s.email || '-'}</td>
-                           <td className="p-5 text-center">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${examCount > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                                 {examCount}
-                              </span>
-                           </td>
-                           <td className="p-5 text-right flex justify-end gap-2">
-                              <button onClick={() => setEditingStudent(s)} className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 border border-transparent transition-colors"><Edit className="w-4 h-4"/></button>
-                              <button onClick={() => { if(confirm("Xóa học sinh này?")) onDeleteStudent(s.id); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-transparent transition-colors"><Trash2 className="w-4 h-4"/></button>
-                           </td>
-                        </tr>
-                     );
-                  }) : (
-                     <tr><td colSpan={7} className="p-10 text-center text-gray-400">Không tìm thấy học sinh nào.</td></tr>
-                  )}
-               </tbody>
-            </table>
-         </div>
-      </div>
-   );
-};
-
-export const ScoreManager = ({ exams }: { exams: ExamConfig[] }) => {
-   const [filterCode, setFilterCode] = useState('all');
-   const [filterClass, setFilterClass] = useState('');
-   const [filterName, setFilterName] = useState('');
-   const [previewData, setPreviewData] = useState<{ result: StudentResult, questions: Question[] } | null>(null);
-
-   const allResults = exams.flatMap(exam => 
-      (exam.results || []).map(result => ({
-         ...result,
-         examCode: exam.code,
-         examTitle: exam.title,
-         questions: exam.questions
-      }))
-   );
-
-   const filteredResults = allResults.filter(r => {
-      const matchCode = filterCode === 'all' || r.examCode === filterCode;
-      const matchClass = !filterClass || r.className.toLowerCase().includes(filterClass.toLowerCase());
-      const matchName = !filterName || r.name.toLowerCase().includes(filterName.toLowerCase());
-      return matchCode && matchClass && matchName;
-   });
-
-   const exportToCSV = () => {
-      const BOM = "\uFEFF";
-      const headers = ["STT", "Mã Đề", "Họ Tên", "Lớp", "Câu Đúng", "Câu Sai", "Điểm Số", "Thời Gian Nộp"];
-      const rows = filteredResults.map((r, i) => [
-         i + 1,
-         r.examCode,
-         r.name,
-         r.className,
-         r.counts.correct,
-         r.counts.wrong,
-         r.score.toFixed(2),
-         r.date || ''
-      ]);
-      
-      const csvContent = BOM + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `ket_qua_thi_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-   };
-
+export const ExamList = ({ exams, onSelectExam, onDeleteExam, onPlayExam, onAssignExam, onPublish, onCreate }: any) => {
    return (
       <div className="animate-fade-in font-poppins">
          <div className="mb-8 flex justify-between items-end">
             <div>
-               <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Báo Cáo Điểm Số</h2>
-               <p className="text-gray-500">Theo dõi kết quả làm bài của học sinh.</p>
+               <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Ngân hàng Đề thi</h2>
+               <p className="text-gray-500">Quản lý tất cả các đề thi, chỉnh sửa và xuất bản.</p>
             </div>
-            <button onClick={exportToCSV} className="flex items-center px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all">
-               <Download className="w-5 h-5 mr-2" /> Xuất Excel
+            <button onClick={onCreate} className="px-5 py-3 bg-teal-600 text-white font-bold rounded-xl shadow-lg hover:bg-teal-700 shadow-teal-200 transition-all transform hover:-translate-y-1 flex items-center">
+               <Plus className="w-5 h-5 mr-2" /> Tạo Đề Mới
             </button>
          </div>
 
-         {/* FILTERS */}
-         <div className="bg-[#DDDDDD] p-6 rounded-3xl shadow-sm border border-[#0D9488] mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-               <label className="block text-xs font-bold text-[#0D9488] uppercase mb-2">Chọn Mã Đề</label>
-               <div className="relative">
-                  <select value={filterCode} onChange={e => setFilterCode(e.target.value)} className="w-full p-3 pl-10 border border-gray-200 rounded-xl appearance-none outline-none bg-gray-50 font-bold text-gray-700 focus:border-teal-500 transition-colors">
-                     <option value="all">Tất cả đề thi</option>
-                     {exams.map(e => <option key={e.id} value={e.code}>{e.code} - {e.title}</option>)}
-                  </select>
-                  <Filter className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"/>
-               </div>
-            </div>
-            <div>
-               <label className="block text-xs font-bold text-[#0D9488] uppercase mb-2">Lọc theo Lớp</label>
-               <div className="relative">
-                  <input type="text" value={filterClass} onChange={e => setFilterClass(e.target.value)} placeholder="Nhập tên lớp..." className="w-full p-3 pl-10 border border-gray-200 rounded-xl outline-none bg-gray-50 font-medium focus:border-teal-500 transition-colors" />
-                  <Users className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"/>
-               </div>
-            </div>
-            <div>
-               <label className="block text-xs font-bold text-[#0D9488] uppercase mb-2">Tìm kiếm Học sinh</label>
-               <div className="relative">
-                  <input type="text" value={filterName} onChange={e => setFilterName(e.target.value)} placeholder="Nhập tên học sinh..." className="w-full p-3 pl-10 border border-gray-200 rounded-xl outline-none bg-gray-50 font-medium focus:border-teal-500 transition-colors" />
-                  <Search className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 pointer-events-none"/>
-               </div>
-            </div>
-         </div>
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {exams.map((exam: ExamConfig) => {
+               const isPublished = !!exam.securityCode;
+               return (
+                  <div key={exam.id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-teal-200 transition-all group flex flex-col relative overflow-hidden">
+                     <div className="absolute top-0 left-0 w-2 h-full bg-teal-500"></div>
+                     <div className="flex justify-between items-start mb-4 pl-4">
+                        <div>
+                           <div className="flex items-center gap-2 mb-2">
+                               <span className="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-full border border-teal-100 inline-block uppercase tracking-wider">{exam.className || "Chưa phân lớp"}</span>
+                               {isPublished ? (
+                                   <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded border border-green-200 uppercase tracking-wider">Đã xuất bản</span>
+                               ) : (
+                                   <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded border border-gray-200 uppercase tracking-wider">Nháp</span>
+                               )}
+                           </div>
+                           <h3 className="text-lg font-bold text-gray-800 line-clamp-1" title={exam.title}>{exam.title}</h3>
+                           <p className="text-xs text-gray-400 mt-1 font-mono">{exam.createdAt}</p>
+                        </div>
+                        <div className="relative group/action">
+                           <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400"><MoreHorizontal className="w-5 h-5"/></button>
+                        </div>
+                     </div>
 
-         {/* TABLE */}
-         <div className="bg-[#DDDDDD] rounded-3xl shadow-sm border border-[#0D9488] overflow-hidden">
-            <table className="w-full text-left">
-               <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider w-16">STT</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider">Họ Tên</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider">Lớp</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-center">Câu Đúng</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-center">Câu Sai</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-right">Điểm Số</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-right">Thời Gian Nộp</th>
-                     <th className="p-5 text-xs font-black text-[#0D9488] uppercase tracking-wider text-center">Chi Tiết</th>
-                  </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-50">
-                  {filteredResults.length > 0 ? filteredResults.map((r, i) => (
-                     <tr key={i} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-5 font-bold text-gray-400">{i + 1}</td>
-                        <td className="p-5 font-bold text-gray-800">
-                           {r.name}
-                           <div className="text-xs font-normal text-gray-400 mt-0.5">{r.examCode} - {r.examTitle}</div>
-                        </td>
-                        <td className="p-5 font-medium text-gray-600">{r.className}</td>
-                        <td className="p-5 text-center font-bold text-emerald-600 bg-emerald-50 rounded-lg">{r.counts.correct}</td>
-                        <td className="p-5 text-center font-bold text-red-500 bg-red-50 rounded-lg">{r.counts.wrong}</td>
-                        <td className="p-5 text-right font-black text-teal-600 text-lg">{r.score.toFixed(2)}</td>
-                        <td className="p-5 text-right text-gray-500 text-sm font-mono">{r.date}</td>
-                        <td className="p-5 text-center">
-                           <button 
-                              onClick={() => setPreviewData({ result: r, questions: r.questions })}
-                              className="bg-gray-100 text-gray-600 p-2 rounded-full hover:bg-gray-200 transition-colors shadow-sm"
-                              title="Xem chi tiết bài làm"
-                           >
-                              <Eye className="w-5 h-5"/>
-                           </button>
-                        </td>
-                     </tr>
-                  )) : (
-                     <tr><td colSpan={8} className="p-10 text-center text-gray-400">Không tìm thấy dữ liệu kết quả nào.</td></tr>
-                  )}
-               </tbody>
-            </table>
-         </div>
+                     <div className="pl-4 mb-6 space-y-2">
+                        <div className="flex items-center text-sm text-gray-600">
+                           <List className="w-4 h-4 mr-2 text-teal-500" />
+                           <span className="font-bold">{exam.questions?.length || 0}</span> <span className="text-gray-400 ml-1">câu hỏi</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                           <Clock className="w-4 h-4 mr-2 text-teal-500" />
+                           <span className="font-bold">{exam.duration}</span> <span className="text-gray-400 ml-1">phút</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                           <Users className="w-4 h-4 mr-2 text-teal-500" />
+                           <span className="font-bold">{exam.results?.length || 0}</span> <span className="text-gray-400 ml-1">lượt thi</span>
+                        </div>
+                     </div>
 
-         {/* REVIEW MODAL */}
-         {previewData && (
-            <div className="fixed inset-0 z-[100] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-               <div className="w-full max-w-5xl h-[90vh] bg-white rounded-[30px] shadow-2xl flex flex-col overflow-hidden animate-fade-in border-4 border-teal-600">
-                  <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                     <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
-                        <List className="w-6 h-6 text-teal-600"/> 
-                        Chi tiết bài làm: <span className="text-teal-600 bg-white px-3 py-1 rounded-lg border border-teal-200">{previewData.result.name}</span>
-                     </h3>
-                     <button onClick={() => setPreviewData(null)} className="p-2 hover:bg-red-100 hover:text-red-500 rounded-full transition-colors text-gray-400">
-                        <X className="w-6 h-6"/>
-                     </button>
+                     <div className="mt-auto pl-4 grid grid-cols-2 gap-2">
+                         <button onClick={() => onSelectExam(exam)} className="py-2.5 bg-gray-50 text-gray-600 font-bold rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-sm">
+                             <Edit className="w-4 h-4 mr-1.5"/> Sửa
+                         </button>
+                         <button onClick={() => onPlayExam(exam)} className="py-2.5 bg-teal-50 text-teal-600 font-bold rounded-xl hover:bg-teal-100 transition-colors flex items-center justify-center text-sm">
+                             <PlayCircle className="w-4 h-4 mr-1.5"/> Thi thử
+                         </button>
+                         {isPublished ? (
+                             <button onClick={() => onAssignExam(exam)} className="col-span-2 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 shadow-md shadow-teal-200 transition-colors flex items-center justify-center text-sm">
+                                 <Share2 className="w-4 h-4 mr-1.5"/> Giao bài & Lấy mã
+                             </button>
+                         ) : (
+                             <button onClick={() => onPublish(exam)} className="col-span-2 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-colors flex items-center justify-center text-sm">
+                                 <Globe className="w-4 h-4 mr-1.5"/> Xuất bản ngay
+                             </button>
+                         )}
+                         <button onClick={() => { if(confirm("Bạn có chắc chắn muốn xóa đề thi này không?")) onDeleteExam(exam.id) }} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                             <Trash2 className="w-4 h-4"/>
+                         </button>
+                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto bg-[#e0f7fa] p-0">
-                     <ResultScreen 
-                        score={previewData.result.score}
-                        total={previewData.result.total}
-                        violations={previewData.result.violations}
-                        counts={previewData.result.counts}
-                        questions={previewData.questions || []}
-                        answers={previewData.result.answers || {}}
-                        allowReview={true} 
-                        onRetry={() => setPreviewData(null)}
-                     />
-                  </div>
-               </div>
-            </div>
-         )}
+               );
+            })}
+            {/* Empty State Card for Add */}
+            <button onClick={onCreate} className="rounded-3xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-8 text-gray-400 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50/30 transition-all min-h-[250px] group">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-teal-100 transition-colors">
+                    <Plus className="w-8 h-8" />
+                </div>
+                <span className="font-bold text-lg">Tạo đề thi mới</span>
+            </button>
+         </div>
       </div>
    );
 };
 
-export const ExamList = ({ exams, onSelectExam, onDeleteExam, onPlayExam, onAssignExam, onCreate }: any) => (
-   <div className="animate-fade-in font-poppins">
-      <div className="flex justify-between items-end mb-8">
-         <div>
-            <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Ngân hàng đề thi</h2>
-            <p className="text-gray-500">Quản lý và chỉnh sửa ngân hàng câu hỏi của bạn.</p>
-         </div>
-         <div className="flex items-center gap-3">
-             <button onClick={onCreate} className="flex items-center px-5 py-2.5 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 shadow-lg shadow-teal-200 transition-all">
-                <FolderPlus className="w-5 h-5 mr-2"/> Tạo Đề Thi
-             </button>
-             <div className="text-sm font-bold text-teal-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">Total: {exams.length}</div>
-         </div>
-      </div>
-      {exams.length === 0 ? <div className="flex flex-col items-center justify-center h-96 bg-white rounded-[30px] border-2 border-dashed border-gray-200"><div className="bg-gray-50 p-6 rounded-full mb-4"><FolderPlus className="w-12 h-12 text-gray-300"/></div><p className="text-gray-400 font-medium">Chưa có đề thi nào được tạo.</p></div> : (
-         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {exams.map((e: any) => (
-               <div key={e.id} onClick={() => onSelectExam(e)} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-2 h-full bg-teal-500 group-hover:bg-cyan-500 transition-colors"></div>
-                  <div className="flex justify-between items-start mb-4 pl-4">
-                     <span className="bg-teal-50 text-teal-700 px-3 py-1 rounded-lg text-xs font-black tracking-wide border border-teal-100">{e.code}</span>
-                     <div className="flex gap-2">
-                        {onAssignExam && (
-                           <button onClick={(ev) => { ev.stopPropagation(); onAssignExam(e); }} className="text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors" title="Giao bài cho lớp">
-                              <BookOpen className="w-4 h-4"/>
+export const PublishView = ({ exams, onPlayExam, user }: any) => {
+  // Logic to show published exams.
+  const publishedExams = exams.filter((e: ExamConfig) => e.securityCode);
+
+  return (
+     <div className="animate-fade-in font-poppins">
+        <div className="mb-8">
+           <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Đề thi công khai</h2>
+           <p className="text-gray-500">Danh sách các đề thi đang mở cho học sinh.</p>
+        </div>
+        
+        {publishedExams.length === 0 ? (
+            <div className="text-center p-10 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-gray-400 font-bold">Chưa có đề thi nào được xuất bản.</p>
+            </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {publishedExams.map((exam: ExamConfig) => (
+                   <div key={exam.id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:border-cyan-200 transition-all group flex flex-col relative overflow-hidden">
+                       <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500"></div>
+                       <div className="pl-4 mb-4">
+                           <span className="bg-cyan-50 text-cyan-700 text-xs font-bold px-3 py-1 rounded-full border border-cyan-100 inline-block uppercase tracking-wider mb-2">{exam.className || "Chung"}</span>
+                           <h3 className="text-lg font-bold text-gray-800 line-clamp-2 min-h-[56px]">{exam.title}</h3>
+                           <p className="text-xs text-gray-400 mt-1 font-mono">{exam.questions.length} câu • {exam.duration} phút</p>
+                       </div>
+                       <div className="mt-auto pl-4">
+                           <button onClick={() => onPlayExam(exam)} className="w-full py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-700 shadow-md shadow-cyan-200 transition-all flex items-center justify-center">
+                               <PlayCircle className="w-5 h-5 mr-2"/> Vào thi ngay
                            </button>
-                        )}
-                        {onPlayExam && <button onClick={(ev) => { ev.stopPropagation(); onPlayExam(e); }} className="text-gray-300 hover:text-teal-600 hover:bg-teal-50 p-2 rounded-full transition-colors" title="Thi thử"><PlayCircle className="w-4 h-4"/></button>}
-                        <button onClick={(ev) => { ev.stopPropagation(); onDeleteExam(e.id); }} className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 className="w-4 h-4"/></button>
-                     </div>
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2 pl-4 line-clamp-2 group-hover:text-teal-600 transition-colors">{e.title}</h3>
-                  <div className="pl-4 flex items-center gap-4 text-xs font-medium text-gray-500 mb-6">
-                     <span className="flex items-center"><Clock className="w-3 h-3 mr-1 text-gray-400"/> {e.duration}p</span>
-                     <span className="flex items-center"><List className="w-3 h-3 mr-1 text-gray-400"/> {e.questions?.length || 0} câu</span>
-                     <span className="flex items-center"><Users className="w-3 h-3 mr-1 text-gray-400"/> {e.className}</span>
-                  </div>
-                  <div className="pl-4 pt-4 border-t border-gray-50 flex justify-between items-center">
-                     <span className="text-xs text-gray-400 font-mono">{e.createdAt}</span>
-                     <span className="text-xs font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded border border-cyan-100">Code: {e.securityCode || 'N/A'}</span>
-                  </div>
-               </div>
-            ))}
-         </div>
-      )}
-   </div>
-);
-
-export const PublishView = ({ exams }: any) => (
-   <div className="animate-fade-in font-poppins">
-      <div className="mb-8"><h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Xuất bản & Chia sẻ</h2><p className="text-gray-500">Lấy mã bảo mật hoặc link để gửi cho học sinh.</p></div>
-      <div className="bg-[#DDDDDD] rounded-3xl shadow-sm border border-[#0D9488] overflow-hidden">
-         <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="p-6 text-xs font-black text-[#0D9488] uppercase tracking-wider">Mã Đề</th><th className="p-6 text-xs font-black text-[#0D9488] uppercase tracking-wider">Tên Đề Thi</th><th className="p-6 text-xs font-black text-[#0D9488] uppercase tracking-wider">Lớp</th><th className="p-6 text-xs font-black text-[#0D9488] uppercase tracking-wider">Mã Bảo Mật</th><th className="p-6 text-xs font-black text-[#0D9488] uppercase tracking-wider text-right">Hành Động</th></tr></thead>
-            <tbody className="divide-y divide-gray-50">
-               {exams.map((e: any) => {
-                  const fakeLink = `http://thaydong.site/?examId=${e.id}&code=${e.securityCode}`;
-                  return (
-                     <tr key={e.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-6 font-bold text-teal-600">{e.code}</td>
-                        <td className="p-6 font-medium text-gray-800">{e.title}</td>
-                        <td className="p-6 text-gray-500">{e.className}</td>
-                        <td className="p-6"><span className="font-mono font-bold bg-gray-100 px-3 py-1 rounded text-gray-700 border border-gray-200">{e.securityCode || 'Chưa tạo'}</span></td>
-                        <td className="p-6 text-right flex justify-end gap-2">
-                            <button onClick={() => e.securityCode && copyToClipboard(fakeLink)} className="text-cyan-600 hover:text-cyan-800 font-bold text-sm bg-cyan-50 hover:bg-cyan-100 px-4 py-2 rounded-lg transition-all border border-cyan-200">Copy Link</button>
-                            <button onClick={() => e.securityCode && copyToClipboard(e.securityCode)} className="text-teal-600 hover:text-teal-800 font-bold text-sm bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-all border border-teal-200">Copy Code</button>
-                        </td>
-                     </tr>
-                  );
-               })}
-               {exams.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">Chưa có dữ liệu.</td></tr>}
-            </tbody>
-         </table>
-      </div>
-   </div>
-);
-
-export const ExamEditor = ({ exam, onUpdate, onBack, onPublish, onCreateNew }: any) => {
-   const [questions, setQuestions] = useState<Question[]>(exam.questions || []);
-   const [showImport, setShowImport] = useState(false);
-   const [showPublishModal, setShowPublishModal] = useState(false); 
-   const [editingQ, setEditingQ] = useState<Question | null>(null);
-   useEffect(() => { onUpdate({ ...exam, questions }); }, [questions]);
-   const handleDeleteQ = (id: number) => { if(confirm('Xóa câu này?')) setQuestions(qs => qs.filter(q => q.id !== id)); };
-   const handleAddEmpty = () => { const newQ = { id: Date.now(), section: 'Phần mới', type: 'choice', question: 'Câu hỏi mới...', options: ['A', 'B', 'C', 'D'], answer: 'A' } as Question; setQuestions(prevQs => [...prevQs, newQ]); };
-   const handleImport = (newQs: Question[]) => { setQuestions(prevQs => [...prevQs, ...newQs]); };
-   const handleSaveQ = (updatedQ: Question) => { setQuestions(prevQs => prevQs.map(q => q.id === updatedQ.id ? updatedQ : q)); setEditingQ(null); };
-   const handleUpdateDuration = () => { const newDur = prompt("Nhập thời gian (phút):", exam.duration); if (newDur && !isNaN(Number(newDur))) onUpdate({ ...exam, duration: Number(newDur) }); };
-   
-   // Handle Saving settings ONLY, not closing or redirecting
-   const handleSavePublishSettings = (settings: any) => { 
-       onUpdate({ ...exam, ...settings }); 
-   };
-
-   return (
-      <div className="h-screen flex flex-col bg-[#F3F4F6] font-poppins">
-         <style>{DASHBOARD_STYLES}</style>
-         {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} />}
-         {editingQ && <EditQuestionModal question={editingQ} onClose={() => setEditingQ(null)} onSave={handleSaveQ} />}
-         {showPublishModal && <PublishExamModal exam={exam} onClose={() => setShowPublishModal(false)} onConfirm={handleSavePublishSettings} onCreateNew={onCreateNew} onPlay={onPublish} />} 
-         
-         {/* HEADER */}
-         <div className="bg-white px-8 py-5 border-b border-gray-200 flex justify-between items-center shadow-sm z-20">
-            <div className="flex items-center gap-4">
-               <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-teal-600"><ArrowLeft className="w-6 h-6"/></button>
-               <div>
-                  <h1 className="text-xl font-black text-gray-800 flex items-center gap-2 font-bookman">{exam.title} <span className="text-xs font-normal bg-teal-50 px-2 py-1 rounded text-teal-600 border border-teal-100 font-poppins">{exam.code}</span></h1>
-                  <button onClick={handleUpdateDuration} className="text-xs font-bold text-teal-500 hover:underline flex items-center mt-1"><Clock className="w-3 h-3 mr-1"/> {exam.duration} phút (Sửa)</button>
-               </div>
+                       </div>
+                   </div>
+                ))}
             </div>
-            <div className="flex gap-3">
-               <button onClick={() => setShowImport(true)} className="flex items-center px-5 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold hover:bg-emerald-100 transition-all border border-emerald-200"><FileUp className="w-4 h-4 mr-2"/> Import</button>
-               <button onClick={handleAddEmpty} className="flex items-center px-5 py-2.5 bg-teal-50 text-teal-700 rounded-xl font-bold hover:bg-teal-100 transition-all border border-teal-200"><Plus className="w-4 h-4 mr-2"/> Thêm câu</button>
-               <button onClick={() => setShowPublishModal(true)} className="flex items-center px-6 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl font-bold shadow-lg shadow-teal-200 hover:shadow-xl transition-all"><PlayCircle className="w-5 h-5 mr-2"/> XUẤT BẢN</button>
+        )}
+     </div>
+  );
+};
+
+export const ExamEditor = ({ exam, onUpdate, onBack, onPublish }: any) => {
+    const [showQuestionModal, setShowQuestionModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+
+    const handleSaveQuestion = (q: Question) => {
+        let newQuestions;
+        if (editingQuestion) {
+             newQuestions = exam.questions.map((item: Question) => item.id === q.id ? q : item);
+        } else {
+             newQuestions = [...exam.questions, q];
+        }
+        onUpdate({ ...exam, questions: newQuestions });
+        setShowQuestionModal(false);
+        setEditingQuestion(null);
+    };
+
+    const handleDeleteQuestion = (id: number) => {
+        if(confirm("Bạn có chắc chắn xóa câu hỏi này?")) {
+            onUpdate({ ...exam, questions: exam.questions.filter((q: Question) => q.id !== id) });
+        }
+    };
+
+    return (
+        <div className="animate-fade-in font-poppins pb-20">
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-[#e0f7fa] z-10 py-4 glass-effect">
+                <div className="flex items-center gap-4">
+                    <button onClick={onBack} className="p-2 hover:bg-white/50 rounded-full transition-colors"><ArrowLeft className="w-6 h-6 text-gray-600"/></button>
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-800">{exam.title}</h2>
+                        <div className="flex gap-2 text-xs font-bold text-gray-500 uppercase mt-1">
+                            <span className="bg-white px-2 py-0.5 rounded border border-gray-200">{exam.questions.length} câu hỏi</span>
+                            <span className="bg-white px-2 py-0.5 rounded border border-gray-200">{exam.duration} phút</span>
+                            {exam.securityCode && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">Đã xuất bản: {exam.securityCode}</span>}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowImportModal(true)} className="px-4 py-2 bg-white text-teal-700 font-bold rounded-xl border border-teal-100 hover:bg-teal-50 transition-colors flex items-center"><FileUp className="w-4 h-4 mr-2"/> Import Word</button>
+                    <button onClick={() => { setEditingQuestion(null); setShowQuestionModal(true); }} className="px-4 py-2 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 shadow-md shadow-teal-200 transition-colors flex items-center"><Plus className="w-4 h-4 mr-2"/> Thêm câu hỏi</button>
+                    <button onClick={onPublish} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-colors flex items-center"><Share2 className="w-4 h-4 mr-2"/> Xuất bản</button>
+                </div>
             </div>
-         </div>
-         
-         {/* EDITOR CONTENT */}
-         <div className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full space-y-6">
-            {questions.length === 0 ? <div className="text-center text-gray-400 mt-32"><p>Đề thi trống. Hãy thêm câu hỏi mới.</p></div> : questions.map((q: any, idx: number) => (
-               <div key={q.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 group">
-                  {q.section && (idx === 0 || q.section !== questions[idx-1].section) && <div className="text-xs font-black text-teal-600 uppercase mb-4 tracking-wider bg-teal-50 p-2 rounded-lg w-fit border border-teal-100 font-bookman">{q.section}</div>}
-                  <div className="flex gap-4">
-                     <div className="flex flex-col items-center min-w-[60px]"><span className="bg-teal-600 text-white font-black text-sm px-3 py-1 rounded-lg shadow-md shadow-teal-200">Câu {idx+1}</span></div>
-                     <div className="flex-1">
-                        <div className="font-bold text-gray-800 mb-3 whitespace-pre-line text-lg"><MathRenderer text={q.question} /></div>
-                        {q.type === 'choice' && <div className="grid grid-cols-2 gap-3">{q.options.map((o:any, i:any) => <div key={i} className={`text-sm p-4 rounded-xl border ${o===q.answer?'bg-teal-50 border-teal-200 text-teal-800 font-bold ring-1 ring-teal-200':'bg-white border-gray-100 text-gray-600'}`}>{String.fromCharCode(65+i)}. <MathRenderer text={o} /></div>)}</div>}
-                        {q.type === 'group' && <div className="space-y-2 mt-2">{q.subQuestions.map((s:any, i:any) => <div key={i} className="text-sm bg-gray-50 p-3 rounded-xl flex justify-between border border-gray-100"><span><MathRenderer text={s.content} /></span><span className={`text-xs px-2 py-1 rounded font-bold ${s.correctAnswer?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{s.correctAnswer?'ĐÚNG':'SAI'}</span></div>)}</div>}
-                        {q.type === 'text' && <div className="bg-yellow-50 p-4 rounded-xl text-sm text-yellow-800 border border-yellow-200 mt-2 font-mono"><span className="font-bold">Gợi ý:</span> {q.answer}</div>}
+
+            <div className="space-y-4">
+                {exam.questions.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 border-dashed">
+                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4"><FileText className="w-10 h-10 text-gray-300"/></div>
+                        <p className="text-gray-400 font-bold text-lg">Chưa có câu hỏi nào.</p>
+                        <p className="text-gray-400 text-sm">Hãy thêm câu hỏi thủ công hoặc Import từ Word.</p>
+                    </div>
+                ) : (
+                    exam.questions.map((q: Question, idx: number) => (
+                        <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-teal-200 hover:shadow-md transition-all group relative">
+                             <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button onClick={() => { setEditingQuestion(q); setShowQuestionModal(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-colors"><Edit className="w-4 h-4"/></button>
+                                 <button onClick={() => handleDeleteQuestion(q.id)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                             </div>
+                             <div className="flex gap-4">
+                                 <span className="bg-gray-100 text-gray-600 font-bold text-sm px-2 py-1 rounded h-fit">Câu {idx+1}</span>
+                                 <div className="flex-1">
+                                     <div className="font-medium text-gray-800 mb-2"><MathRenderer text={q.question} allowMarkdown={true}/></div>
+                                     {q.type === 'choice' && (
+                                         <div className="grid grid-cols-2 gap-2 mt-2">
+                                             {q.options?.map((opt: string, i: number) => (
+                                                 <div key={i} className={`text-sm p-2 rounded border ${opt === q.answer ? 'bg-green-50 border-green-200 text-green-800 font-bold' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+                                                     <span className="mr-2">{String.fromCharCode(65+i)}.</span> <MathRenderer text={opt} allowMarkdown={true}/>
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     )}
+                                     {q.type === 'group' && (
+                                         <div className="mt-2 text-sm bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                             {q.subQuestions?.map((sub, i) => (
+                                                 <div key={i} className="flex justify-between border-b last:border-0 border-gray-200 py-1">
+                                                     <span>{String.fromCharCode(97+i)}) {sub.content}</span>
+                                                     <span className={sub.correctAnswer ? "text-green-600 font-bold" : "text-red-600 font-bold"}>{sub.correctAnswer ? "Đúng" : "Sai"}</span>
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     )}
+                                      {q.type === 'text' && (
+                                         <div className="mt-2 text-sm bg-yellow-50 p-3 rounded-xl border border-yellow-200 text-yellow-800">
+                                             <span className="font-bold">Đáp án gợi ý:</span> {q.answer}
+                                         </div>
+                                     )}
+                                 </div>
+                             </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {showQuestionModal && (
+                 <EditQuestionModal 
+                     question={editingQuestion || { id: Date.now(), type: 'choice', question: '', options: ['','','',''], answer: '' }}
+                     onSave={handleSaveQuestion}
+                     onClose={() => setShowQuestionModal(false)}
+                 />
+            )}
+            {showImportModal && (
+                 <ImportModal 
+                     onImport={(qs) => { onUpdate({ ...exam, questions: [...exam.questions, ...qs] }); setShowImportModal(false); }}
+                     onClose={() => setShowImportModal(false)}
+                 />
+            )}
+        </div>
+    );
+};
+
+export const ScoreManager = ({ exams }: any) => {
+    const [selectedExamId, setSelectedExamId] = useState<string>(exams[0]?.id || '');
+    const currentExam = exams.find((e: ExamConfig) => e.id === selectedExamId);
+
+    // Ensure external libs are loaded for Excel export
+    useEffect(() => { loadExternalLibs(); }, []);
+
+    const downloadExcel = () => {
+        const XLSX = (window as any).XLSX;
+        if (!XLSX || !currentExam) {
+            if (!XLSX) alert("Thư viện Excel đang tải, vui lòng thử lại sau vài giây.");
+            return;
+        }
+        
+        const data = currentExam.results?.map((r: any, i: number) => ({
+            "STT": i + 1,
+            "Họ và Tên": r.name,
+            "Lớp": r.className,
+            "Điểm số": r.score,
+            "Số câu đúng": r.counts.correct,
+            "Số câu sai": r.counts.wrong,
+            "Thời gian làm": `${Math.floor(r.timeSpent/60)}p ${r.timeSpent%60}s`,
+            "Ngày thi": r.date,
+            "Vi phạm": r.violations
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "KetQua");
+        XLSX.writeFile(wb, `KetQua_${currentExam.code || 'Exam'}.xlsx`);
+    };
+
+    return (
+        <div className="animate-fade-in font-poppins h-full flex flex-col">
+            <div className="flex justify-between items-end mb-6 shrink-0">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Báo cáo kết quả</h2>
+                    <p className="text-gray-500">Xem điểm và thống kê bài làm của học sinh.</p>
+                </div>
+                <div className="flex gap-3">
+                     <select value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className="p-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-teal-500">
+                         {exams.map((e: ExamConfig) => <option key={e.id} value={e.id}>{e.title}</option>)}
+                     </select>
+                     <button onClick={downloadExcel} disabled={!currentExam} className="px-4 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-md shadow-green-200 transition-colors flex items-center disabled:opacity-50">
+                         <Download className="w-4 h-4 mr-2"/> Xuất Excel
+                     </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
+                 <div className="p-4 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-4 font-bold text-xs text-gray-500 uppercase tracking-wider">
+                     <div className="col-span-1 text-center">Top</div>
+                     <div className="col-span-3">Họ và Tên</div>
+                     <div className="col-span-1">Lớp</div>
+                     <div className="col-span-2 text-center">Điểm số</div>
+                     <div className="col-span-3">Thời gian / Ngày</div>
+                     <div className="col-span-2 text-center">Trạng thái</div>
+                 </div>
+                 <div className="overflow-y-auto flex-1 p-2">
+                     {!currentExam || !currentExam.results || currentExam.results.length === 0 ? (
+                         <div className="text-center py-20 text-gray-400">Chưa có dữ liệu kết quả nào.</div>
+                     ) : (
+                         currentExam.results.sort((a,b) => b.score - a.score).map((r: StudentResult, i: number) => (
+                             <div key={i} className="grid grid-cols-12 gap-4 items-center p-4 hover:bg-teal-50/30 rounded-xl transition-colors border-b border-gray-50 last:border-0">
+                                 <div className="col-span-1 text-center font-black text-gray-400">
+                                     {i < 3 ? <span className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-white ${i===0?'bg-yellow-400':i===1?'bg-gray-400':'bg-orange-400'}`}>{i+1}</span> : i+1}
+                                 </div>
+                                 <div className="col-span-3 font-bold text-gray-800">{r.name}</div>
+                                 <div className="col-span-1 text-sm text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded text-center w-fit">{r.className}</div>
+                                 <div className="col-span-2 text-center">
+                                     <span className={`text-lg font-black ${r.score >= 8 ? 'text-green-600' : r.score >= 5 ? 'text-blue-600' : 'text-red-600'}`}>
+                                         {r.score.toFixed(2)}
+                                     </span>
+                                     <span className="text-xs text-gray-400 font-medium ml-1">/ {r.total}</span>
+                                 </div>
+                                 <div className="col-span-3 text-xs text-gray-500">
+                                     <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> {Math.floor((r.timeSpent || 0)/60)}p {(r.timeSpent || 0)%60}s</div>
+                                     <div className="flex items-center gap-1 mt-1"><Calendar className="w-3 h-3"/> {r.date}</div>
+                                 </div>
+                                 <div className="col-span-2 text-center">
+                                     {r.violations > 0 ? (
+                                         <span className="bg-red-50 text-red-600 px-2 py-1 rounded-full text-[10px] font-bold border border-red-100 flex items-center justify-center gap-1"><AlertTriangle className="w-3 h-3"/> {r.violations} VP</span>
+                                     ) : (
+                                         <span className="bg-green-50 text-green-600 px-2 py-1 rounded-full text-[10px] font-bold border border-green-100 flex items-center justify-center gap-1"><Check className="w-3 h-3"/> Hợp lệ</span>
+                                     )}
+                                 </div>
+                             </div>
+                         ))
+                     )}
+                 </div>
+            </div>
+        </div>
+    );
+};
+
+export const StudentManager = ({ students, onAddStudent, onEditStudent, onDeleteStudent, onDeleteStudents, onImportStudents }: any) => {
+    const [showModal, setShowModal] = useState(false);
+    const [showImport, setShowImport] = useState(false);
+    const [editingStudent, setEditingStudent] = useState<Student | undefined>(undefined);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [filterClass, setFilterClass] = useState('all');
+
+    const uniqueClasses = Array.from(new Set(students.map((s: Student) => s.className))).sort() as string[];
+    const filteredStudents = filterClass === 'all' ? students : students.filter((s: Student) => s.className === filterClass);
+
+    const toggleSelect = (id: string) => {
+        const newSet = new Set(selectedIds);
+        if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+        setSelectedIds(newSet);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredStudents.length) setSelectedIds(new Set());
+        else setSelectedIds(new Set(filteredStudents.map((s: Student) => s.id)));
+    };
+
+    const handleDeleteSelected = () => {
+        if (confirm(`Bạn có chắc chắn xóa ${selectedIds.size} học sinh đã chọn?`)) {
+            onDeleteStudents(Array.from(selectedIds));
+            setSelectedIds(new Set());
+        }
+    };
+
+    return (
+        <div className="animate-fade-in font-poppins h-full flex flex-col">
+             <div className="flex justify-between items-end mb-6 shrink-0">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-800 mb-2 font-bookman">Quản lý học sinh</h2>
+                    <p className="text-gray-500">Thêm, sửa, xóa và nhập danh sách học sinh.</p>
+                </div>
+                <div className="flex gap-3">
+                     <button onClick={() => setShowImport(true)} className="px-4 py-3 bg-white text-teal-700 font-bold rounded-xl border border-teal-100 hover:bg-teal-50 transition-colors flex items-center shadow-sm">
+                         <Upload className="w-4 h-4 mr-2"/> Import Excel
+                     </button>
+                     <button onClick={() => { setEditingStudent(undefined); setShowModal(true); }} className="px-4 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 shadow-md shadow-teal-200 transition-colors flex items-center">
+                         <UserPlus className="w-4 h-4 mr-2"/> Thêm học sinh
+                     </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
+                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                     <div className="flex items-center gap-4">
+                         <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 outline-none bg-white">
+                             <option value="all">Tất cả các lớp</option>
+                             {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                         </select>
+                         <span className="text-xs font-bold text-gray-400">{filteredStudents.length} học sinh</span>
                      </div>
-                     <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setEditingQ(q)} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-teal-50 hover:text-teal-600 border border-transparent transition-colors"><Edit className="w-4 h-4"/></button>
-                        <button onClick={() => handleDeleteQ(q.id)} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-red-50 hover:text-red-600 border border-transparent transition-colors"><Trash2 className="w-4 h-4"/></button>
-                     </div>
-                  </div>
-               </div>
-            ))}
-         </div>
-      </div>
-   );
+                     {selectedIds.size > 0 && (
+                         <button onClick={handleDeleteSelected} className="text-red-600 text-xs font-bold flex items-center hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                             <Trash2 className="w-3 h-3 mr-1"/> Xóa {selectedIds.size} đã chọn
+                         </button>
+                     )}
+                 </div>
+
+                 <div className="p-4 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-4 font-bold text-xs text-gray-500 uppercase tracking-wider items-center">
+                     <div className="col-span-1 text-center"><input type="checkbox" checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 accent-teal-600" /></div>
+                     <div className="col-span-4">Họ và Tên</div>
+                     <div className="col-span-2">Lớp</div>
+                     <div className="col-span-3">Email</div>
+                     <div className="col-span-2 text-right">Thao tác</div>
+                 </div>
+
+                 <div className="overflow-y-auto flex-1 p-2">
+                     {filteredStudents.length === 0 ? (
+                         <div className="text-center py-20 text-gray-400">Chưa có dữ liệu học sinh.</div>
+                     ) : (
+                         filteredStudents.map((s: Student) => (
+                             <div key={s.id} className={`grid grid-cols-12 gap-4 items-center p-4 hover:bg-teal-50/30 rounded-xl transition-colors border-b border-gray-50 last:border-0 ${selectedIds.has(s.id) ? 'bg-teal-50/50' : ''}`}>
+                                 <div className="col-span-1 text-center"><input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)} className="w-4 h-4 rounded border-gray-300 accent-teal-600" /></div>
+                                 <div className="col-span-4 font-bold text-gray-800">{s.name}</div>
+                                 <div className="col-span-2 text-sm text-gray-600">{s.className}</div>
+                                 <div className="col-span-3 text-xs text-gray-400 font-mono truncate">{s.email || '--'}</div>
+                                 <div className="col-span-2 flex justify-end gap-2">
+                                     <button onClick={() => { setEditingStudent(s); setShowModal(true); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit className="w-4 h-4"/></button>
+                                     <button onClick={() => { if(confirm("Xóa học sinh này?")) onDeleteStudent(s.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                                 </div>
+                             </div>
+                         ))
+                     )}
+                 </div>
+            </div>
+
+            {showModal && (
+                <StudentModal 
+                    student={editingStudent}
+                    onClose={() => setShowModal(false)}
+                    onSave={(s) => {
+                        if (editingStudent) onEditStudent(s);
+                        else onAddStudent(s);
+                        setShowModal(false);
+                    }}
+                />
+            )}
+            {showImport && (
+                <ImportStudentModal 
+                    onClose={() => setShowImport(false)}
+                    onImport={(list) => { onImportStudents(list); setShowImport(false); }}
+                />
+            )}
+        </div>
+    );
 };

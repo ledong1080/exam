@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, AlertTriangle, CheckCircle, List, EyeOff, LogOut, User, Clock, AlertCircle, ChevronRight, Sparkles, Check, XCircle, Key, Loader2, ChevronLeft, HelpCircle, Maximize } from 'lucide-react';
-import { Question, SubQuestion } from '../types';
+import { Question, SubQuestion, User as UserType, Student } from '../types';
 import { MathRenderer, SmartTextRenderer, loadExternalLibs } from '../utils/common';
 import { callGeminiAPI } from '../services/geminiService';
 
@@ -305,17 +305,48 @@ export const ResultScreen = ({ score, total, violations, onRetry, questions = []
   );
 };
 
-export const StartScreen = ({ exam, onStart, initialCode, initialName, initialClass }: any) => {
+export const StartScreen = ({ exam, onStart, initialCode, initialName, initialClass, user, studentsList = [] }: any) => {
    const [name, setName] = useState(initialName || '');
    const [code, setCode] = useState(initialCode || '');
    const [inputClass, setInputClass] = useState(initialClass || '');
    const [error, setError] = useState('');
+   const [isMatched, setIsMatched] = useState(false);
    
-   // Update local state if initial values change
+   // Logic tự động điền thông tin dựa trên email khi user đăng nhập
+   useEffect(() => {
+       if (user) {
+           // Nếu đã đăng nhập
+           if (user.email && studentsList.length > 0) {
+               // Tìm học sinh trong danh sách có email trùng khớp
+               const matchedStudent = studentsList.find((s: Student) => 
+                   s.email && s.email.trim().toLowerCase() === user.email.trim().toLowerCase()
+               );
+
+               if (matchedStudent) {
+                   setName(matchedStudent.name);
+                   setInputClass(matchedStudent.className);
+                   setIsMatched(true);
+               } else {
+                   // Fallback nếu không tìm thấy trong danh sách import
+                   setName(user.name);
+                   setInputClass(user.className || '');
+                   setIsMatched(false);
+               }
+           } else {
+               // Fallback cơ bản
+               setName(user.name);
+               setInputClass(user.className || '');
+           }
+       } else {
+           // Nếu chưa đăng nhập, dùng giá trị initial (từ URL)
+           if (initialName) setName(initialName);
+           if (initialClass) setInputClass(initialClass);
+       }
+   }, [user, studentsList, initialName, initialClass]);
+   
+   // Cập nhật code từ URL
    useEffect(() => { if(initialCode) setCode(initialCode); }, [initialCode]);
-   useEffect(() => { if(initialName) setName(initialName); }, [initialName]);
-   useEffect(() => { if(initialClass) setInputClass(initialClass); }, [initialClass]);
-   
+
    const handleLogin = async () => { 
       // 1. Check Security Code
       if (code.toUpperCase() !== exam.securityCode) { 
@@ -346,34 +377,97 @@ export const StartScreen = ({ exam, onStart, initialCode, initialName, initialCl
    const isFormFilled = name && code && inputClass;
    
    return (
-      <div className="quiz-background w-full p-4 justify-center">
-         <style>{FLASHCARD_STYLES}</style>
-         <div className="card-3d w-full max-w-md h-auto min-h-[500px]">
-            <div className="card-header justify-center bg-teal-50 border-0 pt-8 pb-0">
-                <span className="text-xl font-black text-teal-800 uppercase tracking-widest">THÔNG TIN DỰ THI</span>
+      <div className="quiz-background w-full p-4 justify-center items-center flex min-h-screen font-poppins">
+         <div className="bg-white w-full max-w-[380px] rounded-[30px] shadow-2xl overflow-hidden relative border border-gray-100">
+            {/* Header Line */}
+            <div className="bg-white p-5 border-b border-gray-100 text-center">
+                <h2 className="text-teal-700 font-bold text-lg uppercase tracking-wide">THÔNG TIN DỰ THI</h2>
             </div>
-            <div className="card-body text-center flex flex-col justify-center px-8 pb-10">
-               <div className="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4 text-teal-600 shadow-inner border border-teal-100"><User className="w-12 h-12"/></div>
-               <h1 className="text-2xl font-black text-gray-800 mb-2">{exam.title}</h1>
-               <div className="inline-flex items-center gap-2 bg-gray-100 px-4 py-1.5 rounded-full text-xs font-bold text-gray-600 mb-8 mx-auto"><Clock className="w-3 h-3"/> {exam.duration} phút • {exam.questions?.length || 0} câu</div>
-               {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl mb-4 font-bold flex items-center justify-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4"/> {error}</div>}
-               <div className="space-y-4 text-left w-full">
-                  <div><label className="text-xs font-bold text-teal-600 uppercase ml-1 mb-1 block">HỌ TÊN HỌC SINH</label><input type="text" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-teal-500 focus:bg-white transition-colors font-bold text-gray-800 placeholder-gray-300" placeholder="Nguyễn Văn A..." value={name} onChange={e => setName(e.target.value)} /></div>
-                  <div><label className="text-xs font-bold text-teal-600 uppercase ml-1 mb-1 block">LỚP</label><input type="text" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-teal-500 focus:bg-white transition-colors font-bold text-gray-800 placeholder-gray-300" placeholder="Ví dụ: 12A1..." value={inputClass} onChange={e => setInputClass(e.target.value)} /></div>
-                  <div><label className="text-xs font-bold text-teal-600 uppercase ml-1 mb-1 block">MÃ BẢO MẬT</label><input type="text" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-teal-500 focus:bg-white transition-colors font-mono font-bold text-center uppercase text-lg tracking-widest text-teal-600 placeholder-gray-300" placeholder="******" value={code} onChange={e => setCode(e.target.value)} maxLength={6} /></div>
-                  
-                  <button 
-                     onClick={handleLogin} 
-                     disabled={!isFormFilled} 
-                     className={`w-full py-4 rounded-2xl font-black shadow-lg transition-all transform mt-4 uppercase flex items-center justify-center
-                        ${isFormFilled 
-                            ? 'bg-teal-600 text-white hover:bg-teal-500 hover:shadow-xl hover:-translate-y-1' 
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-70'}`}
-                  >
-                     VÀO THI NGAY
-                  </button>
+
+            <div className="p-8 flex flex-col items-center">
+               {/* Avatar Section */}
+               <div className="relative mb-3">
+                   <div className="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center text-teal-600 border-4 border-white shadow-lg">
+                       <User className="w-10 h-10" />
+                   </div>
+                   {/* Status Dot */}
+                   <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-white"></div>
+               </div>
+
+               {/* Name Display (Large) */}
+               <h3 className="text-xl font-black text-gray-800 mb-2 text-center">
+                   {name || "Khách"}
+               </h3>
+
+               {/* Exam Info Pill */}
+               <div className="bg-gray-100 px-4 py-1.5 rounded-full text-xs font-bold text-gray-500 mb-8 flex items-center gap-2">
+                   <Clock className="w-3.5 h-3.5" /> {exam.duration} phút • {exam.questions?.length || 0} câu
+               </div>
+
+               {/* Error Message */}
+               {error && (
+                   <div className="w-full bg-red-50 text-red-600 text-xs p-3 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse">
+                       <AlertCircle className="w-4 h-4" /> {error}
+                   </div>
+               )}
+
+               {/* Form Inputs */}
+               <div className="w-full space-y-4">
+                   {/* Name Input */}
+                   <div>
+                       <label className="block text-[10px] font-bold text-teal-600 uppercase mb-1.5 tracking-wider">HỌ TÊN HỌC SINH</label>
+                       <input
+                           type="text"
+                           className={`w-full p-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-bold text-gray-700 focus:bg-white focus:border-teal-500 focus:ring-2 ring-teal-100 transition-all ${user ? 'bg-gray-100 opacity-80 cursor-not-allowed' : ''}`}
+                           placeholder="Nhập họ và tên..."
+                           value={name}
+                           onChange={e => !user && setName(e.target.value)}
+                           readOnly={!!user}
+                       />
+                   </div>
+
+                   {/* Class Input */}
+                   <div>
+                       <label className="block text-[10px] font-bold text-teal-600 uppercase mb-1.5 tracking-wider">LỚP</label>
+                       <input
+                           type="text"
+                           className={`w-full p-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-bold text-gray-700 focus:bg-white focus:border-teal-500 focus:ring-2 ring-teal-100 transition-all ${user ? 'bg-gray-100 opacity-80 cursor-not-allowed' : ''}`}
+                           placeholder="Nhập tên lớp..."
+                           value={inputClass}
+                           onChange={e => !user && setInputClass(e.target.value)}
+                           readOnly={!!user}
+                       />
+                   </div>
+
+                   {/* Security Code Input */}
+                   <div>
+                       <label className="block text-[10px] font-bold text-teal-600 uppercase mb-1.5 tracking-wider">MÃ BẢO MẬT</label>
+                       <input
+                           type="text"
+                           className="w-full p-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-black text-gray-700 text-center tracking-[0.3em] uppercase focus:bg-white focus:border-teal-500 focus:ring-2 ring-teal-100 transition-all placeholder:font-normal placeholder:tracking-normal"
+                           placeholder="******"
+                           value={code}
+                           onChange={e => setCode(e.target.value)}
+                           maxLength={6}
+                       />
+                   </div>
+
+                   {/* Submit Button */}
+                   <button
+                       onClick={handleLogin}
+                       disabled={!isFormFilled}
+                       className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wide mt-4 transition-all transform active:scale-95
+                           ${isFormFilled
+                               ? 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-600 hover:from-teal-500 hover:to-teal-600 hover:text-white shadow-lg hover:shadow-teal-200'
+                               : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+                   >
+                       VÀO THI NGAY
+                   </button>
                </div>
             </div>
+            
+            {/* Top Decorative Line */}
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-teal-600"></div>
          </div>
       </div>
    );
